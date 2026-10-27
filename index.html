@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Rechnungsvisum</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
+<script>
+/* ===== EINSTELLUNG: hier die Web-App-URL aus Google Apps Script einfügen ===== */
+const API_URL = 'HIER_WEB_APP_URL_EINFUEGEN';
+</script>
+<style>
+:root{
+  --bg:#f3f5f3; --surface:#fff; --ink:#17201d; --muted:#5a6863; --line:#d8dfdb;
+  --accent:#2343a3; --accent-ink:#fff; --accent-soft:#e5eaf8;
+  --ok:#1d7546; --ok-soft:#e1f1e7; --warn:#9a5700; --warn-soft:#fbeed6; --bad:#b0261e; --bad-soft:#f8e1df; --soft:#e6ebe8;
+  --shadow:0 10px 40px rgba(20,30,40,.18);
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#101513; --surface:#171f1c; --ink:#e5ebe8; --muted:#98a6a0; --line:#2a3430;
+  --accent:#86a2f2; --accent-ink:#0d1430; --accent-soft:#1d2744;
+  --ok:#62c891; --ok-soft:#14301f; --warn:#e5a64c; --warn-soft:#382810; --bad:#f08077; --bad-soft:#3b1815; --soft:#232c29;
+  --shadow:0 10px 40px rgba(0,0,0,.5); color-scheme:dark;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+[hidden]{display:none!important}
+.wrap{max-width:1080px;margin:0 auto;padding:24px max(16px,env(safe-area-inset-right)) 64px max(16px,env(safe-area-inset-left));display:grid;gap:18px}
+h1,h2,h3{font-family:var(--f-display);margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1{font-size:clamp(24px,4vw,32px);font-weight:800} h2{font-size:19px;font-weight:800} h3{font-size:16px}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-weight:500}
+.muted{color:var(--muted)}
+.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.top{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;justify-content:space-between}
+.sub{display:flex;flex-wrap:wrap;gap:4px 14px;color:var(--muted);font-size:14px;align-items:center}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;font-size:14px;line-height:1.2;color:var(--ink);text-decoration:none}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.btn.bad{color:var(--bad);border-color:var(--bad)}
+.btn.bad.solid{background:var(--bad);color:var(--surface)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn.link{border:0;background:none;padding:2px 4px;color:var(--accent)}
+.btn[disabled]{opacity:.5;cursor:wait}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;padding:2px 10px;border-radius:12px}
+.badge.ok{background:var(--ok-soft);color:var(--ok)} .badge.bad{background:var(--bad-soft);color:var(--bad)}
+.notice{border-radius:10px;padding:12px 16px;background:var(--surface);border:1px solid var(--line)}
+.notice.bad{background:var(--bad-soft);border-color:transparent;color:var(--bad)}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stat{background:var(--surface);padding:12px 16px;display:grid;gap:2px}
+.stat .v{font-size:19px} .stat .c{font-size:13px;color:var(--muted)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line)}
+.tab{border:0;background:none;padding:9px 12px;cursor:pointer;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab .n{font-family:var(--f-mono);font-size:12px;margin-left:4px;padding:1px 6px;border-radius:10px;background:var(--soft)}
+.tab.hot .n{background:var(--accent);color:var(--accent-ink)}
+.filters{display:flex;flex-wrap:wrap;gap:8px}
+.filters select,.filters input{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 10px;min-width:0}
+.filters input{flex:1 1 200px}
+.list{display:grid;gap:10px}
+.inv{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:8px;min-width:0}
+.inv-h{display:flex;gap:12px;justify-content:space-between;align-items:flex-start}
+.inv-h>div{min-width:0}
+.lief{font-weight:700;font-size:16px;overflow-wrap:anywhere}
+.amt{font-size:17px;white-space:nowrap}
+.meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted)}
+.meta b{color:var(--ink)}
+.desc{margin:0;overflow-wrap:anywhere}
+.inv-f{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;justify-content:space-between;border-top:1px dashed var(--line);padding-top:10px}
+.stamp{display:inline-flex;flex-direction:column;border:2px solid currentColor;border-radius:5px;padding:2px 9px 3px;transform:rotate(-2deg);line-height:1.15}
+.stamp .s{font-family:var(--f-display);font-weight:800;text-transform:uppercase;letter-spacing:.09em;font-size:13px}
+.stamp .w{font-size:11.5px}
+.st-Eingang{color:var(--accent)} .st-Verworfen{color:var(--muted)} .st-Offen{color:var(--warn)} .st-Visiert{color:var(--ok)} .st-Zurückgewiesen{color:var(--bad)}
+.comment{margin:0;font-size:14px;padding:8px 12px;border-radius:8px;background:var(--soft);overflow-wrap:anywhere}
+.comment.bad{background:var(--bad-soft)}
+.chip{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:10px;background:var(--warn-soft);color:var(--warn)}
+details summary{cursor:pointer;font-size:13px;color:var(--muted);width:max-content}
+details ol{margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:28px 20px;text-align:center;color:var(--muted)}
+.center{max-width:560px;margin:10vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px;display:grid;gap:12px}
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--soft);font-weight:700;white-space:nowrap}
+td.h{font-family:var(--f-mono);font-size:11px;color:var(--muted);white-space:nowrap}
+.modal{position:fixed;inset:0;background:rgba(10,16,14,.5);display:grid;place-items:center;padding:16px;z-index:20}
+.sheet{background:var(--surface);border-radius:14px;box-shadow:var(--shadow);width:min(560px,100%);max-height:100%;overflow:auto}
+.m-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 20px 6px}
+.m-head .x{border:0;background:none;font-size:24px;cursor:pointer;color:var(--muted)}
+.m-content{padding:8px 20px 4px;display:grid;gap:14px}
+.m-foot{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;padding:14px 20px 18px}
+.form{display:grid;gap:12px}
+.field{display:grid;gap:4px;min-width:0}
+.field label,.lbl{font-size:13px;font-weight:700}
+.field input,.field select,.field textarea{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+.field input.auto,.field textarea.auto{background:var(--accent-soft);border-color:var(--accent)}
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:460px){.row2{grid-template-columns:1fr}}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.err{font-size:14px;color:var(--bad);margin:0;font-weight:700}
+.qr{font-size:13px;padding:8px 12px;border-radius:8px;background:var(--bg);margin:0}
+.qr.ok{background:var(--ok-soft);color:var(--ok);font-weight:700}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.check input{margin-top:4px;width:18px;height:18px;flex:0 0 18px;accent-color:var(--ok)}
+.recap{display:grid;gap:2px;padding:12px 14px;border-radius:10px;background:var(--bg)}
+.recap .row{display:flex;justify-content:space-between;gap:10px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;font-size:14px;z-index:30;max-width:calc(100% - 32px);box-shadow:var(--shadow)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="gate" class="center"><span class="eyebrow">Rechnungsvisum</span><h1>Wird geladen …</h1></div>
+
+  <div id="app" hidden style="display:grid;gap:18px">
+    <header class="top">
+      <div style="display:grid;gap:2px;min-width:0">
+        <span class="eyebrow">Rechnungsvisum</span>
+        <h1 id="h-anlass">Rechnungsvisum</h1>
+        <div class="sub"><span id="h-me"></span><span id="h-journal"></span><button class="btn link small" data-act="reload">Aktualisieren</button></div>
+      </div>
+      <div class="actions"><button class="btn primary" data-act="neu">+ Rechnung erfassen</button></div>
+    </header>
+    <div id="notice"></div>
+    <section class="summary" id="summary"></section>
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="filters" id="filters">
+      <select id="f-res" aria-label="Ressort"><option value="">Alle Ressorts</option></select>
+      <input id="f-q" type="search" placeholder="Lieferant, Rechnungsnr. oder Leistung suchen" aria-label="Suchen">
+    </div>
+    <div class="list" id="list"></div>
+  </div>
+</div>
+<div id="modal" class="modal" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="m-title" id="m-sheet"></div></div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const chf=n=>'CHF '+(Number(n)||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
+const dfmt=iso=>{if(!iso)return '–';const m=String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);if(!m)return '–';if(String(iso).length>10){const d=new Date(iso);return d.toLocaleDateString('de-CH')+' '+d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'})}return `${m[3]}.${m[2]}.${m[1]}`};
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const parseAmt=v=>{const n=parseFloat(String(v).replace(/['’\s]/g,'').replace(',','.'));return isFinite(n)?Math.round(n*100)/100:NaN};
+function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,3500)}
+
+/* ===== Zugang ===== */
+let TOKEN='',OPEN_NR=null;
+(function(){
+  const h=new URLSearchParams(location.hash.slice(1));
+  const t=h.get('t');OPEN_NR=Number(h.get('r'))||null;
+  if(t){TOKEN=t;try{localStorage.setItem('rv.t',t)}catch(e){}}
+  else{try{TOKEN=localStorage.getItem('rv.t')||''}catch(e){}}
+  if(location.hash)history.replaceState(null,'',location.pathname+location.search);
+})();
+async function api(a,d){
+  const res=await fetch(API_URL,{method:'POST',body:JSON.stringify(Object.assign({a,t:TOKEN},d||{}))});
+  if(!res.ok)throw new Error('Server nicht erreichbar ('+res.status+').');
+  const j=await res.json();if(!j.ok)throw new Error(j.error||'Unbekannter Fehler.');return j;
+}
+function gate(title,text){$('#gate').innerHTML=`<span class="eyebrow">Rechnungsvisum</span><h1>${esc(title)}</h1><p style="margin:0">${text}</p>`;$('#gate').hidden=false;$('#app').hidden=true}
+
+/* ===== Zustand ===== */
+const S={me:null,liste:[],ressorts:[],journal:null,anlass:'',tab:null,jrows:null};
+const isLeit=()=>S.me&&S.me.rolle==='Ressortleitung';
+const isAdmin=()=>S.me&&S.me.rolle==='Admin';
+const mineRes=x=>isLeit()&&S.me.ressorts.includes(x.ressort);
+const mineErf=x=>S.me&&!!x.vonMail&&x.vonMail===S.me.mail;
+const canVisum=x=>x.status==='Offen'&&mineRes(x)&&!mineErf(x);
+const canKorr=x=>x.status==='Zurückgewiesen'&&(mineErf(x)||isAdmin());
+
+async function load(){
+  const j=await api('start');
+  Object.assign(S,{me:j.me,liste:j.liste,ressorts:j.ressorts,journal:j.journal,anlass:j.anlass});
+  if(!S.tab)S.tab=isLeit()?'zu':(isAdmin()?'eingang':'meine');
+  draw();
+}
+async function boot(){
+  if(!/^https:\/\/script\.google\.com\//.test(API_URL)){gate('Noch nicht eingerichtet','In der Datei <b>index.html</b> fehlt die Web-App-URL aus Google Apps Script (Zeile <code>API_URL</code>).');return}
+  if(!TOKEN){gate('Persönlicher Link nötig','Bitte öffne die Seite über deinen persönlichen Link aus dem Mail. Hast du keinen erhalten, melde dich beim Finanzverantwortlichen.');return}
+  try{await load();$('#gate').hidden=true;$('#app').hidden=false;
+    if(OPEN_NR){const x=S.liste.find(i=>i.nr===OPEN_NR);if(x&&canVisum(x))visumModal(x,'Visiert');else if(x&&canKorr(x))formModal(x);OPEN_NR=null}
+  }catch(e){
+    if(/ungültig|gesperrt/.test(e.message)){try{localStorage.removeItem('rv.t')}catch(x){}}
+    gate('Zugang nicht möglich',esc(e.message));
+  }
+}
+
+/* ===== Darstellung ===== */
+function draw(){
+  $('#h-anlass').textContent=S.anlass||'Rechnungsvisum';document.title='Rechnungsvisum'+(S.anlass?' '+S.anlass:'');
+  $('#h-me').innerHTML=`Angemeldet als <b>${esc(S.me.name)}</b> · ${esc(S.me.rolle)}${isLeit()?' '+esc(S.me.ressorts.join(', ')):''}`;
+  const j=S.journal;
+  $('#h-journal').innerHTML=j.ok?`<span class="badge ok" title="Letzter Hash: ${esc(j.hash)}">✓ Journal intakt · ${j.count} Einträge</span>`:`<span class="badge bad">✗ Journal verändert</span>`;
+  $('#notice').innerHTML=j.ok?'':`<div class="notice bad"><b>Achtung: Das Journal wurde nachträglich verändert</b> (Zeile ${esc(j.zeile)}: ${esc(j.grund)}). Bitte die Revisionsstelle informieren.</div>`;
+  const vis=S.liste;const sum=k=>vis.filter(x=>x.status===k);
+  const col={Offen:'var(--warn)',Visiert:'var(--ok)',Zurückgewiesen:'var(--bad)'};
+  col.Eingang='var(--accent)';
+  $('#summary').innerHTML=(isAdmin()?['Eingang','Offen','Visiert','Zurückgewiesen']:['Offen','Visiert','Zurückgewiesen']).map(k=>{const l=sum(k);return `<div class="stat"><span class="eyebrow"><span class="dot" style="background:${col[k]}"></span>${k==='Eingang'?'Eingang, nicht zugeordnet':k}</span><span class="v num">${chf(l.reduce((s,x)=>s+(x.betrag||0),0))}</span><span class="c">${l.length} ${l.length===1?'Rechnung':'Rechnungen'}</span></div>`}).join('');
+  const tabs=[];
+  if(isLeit())tabs.push(['zu','Zu visieren',vis.filter(canVisum).length,true]);
+  tabs.push(['meine','Meine Erfassungen',vis.filter(mineErf).length,vis.some(x=>mineErf(x)&&x.status==='Zurückgewiesen')]);
+  if(isAdmin())tabs.unshift(['eingang','Eingang',sum('Eingang').length,true]);
+  if(isAdmin())tabs.push(['offen','Offen',sum('Offen').length],['visiert','Visiert',sum('Visiert').length],['zurueck','Zurückgewiesen',sum('Zurückgewiesen').length],['verworfen','Verworfen',sum('Verworfen').length]);
+  tabs.push(['alle','Alle',vis.length]);
+  if(isAdmin())tabs.push(['journal','Journal','']);
+  if(!tabs.some(t=>t[0]===S.tab))S.tab=tabs[0][0];
+  $('#tabs').innerHTML=tabs.map(([k,l,n,hot])=>`<button class="tab ${hot&&n?'hot':''}" role="tab" aria-selected="${S.tab===k}" data-act="tab" data-t="${k}">${l}${n!==''?`<span class="n">${n}</span>`:''}</button>`).join('');
+  const sel=$('#f-res'),v=sel.value;const rs=[...new Set(vis.map(x=>x.ressort))].sort();
+  sel.innerHTML='<option value="">Alle Ressorts</option>'+rs.map(r=>`<option>${esc(r)}</option>`).join('');sel.value=rs.includes(v)?v:'';
+  $('#filters').hidden=S.tab==='journal';
+  if(S.tab==='journal'){drawJournal();return}
+  const q=$('#f-q').value.trim().toLowerCase(),fr=sel.value;
+  const f={eingang:x=>x.status==='Eingang',verworfen:x=>x.status==='Verworfen',zu:canVisum,meine:mineErf,offen:x=>x.status==='Offen',visiert:x=>x.status==='Visiert',zurueck:x=>x.status==='Zurückgewiesen',alle:()=>true}[S.tab];
+  const l=vis.filter(f).filter(x=>(!fr||x.ressort===fr)&&(!q||[x.lieferant,x.rechnungsnr,x.leistung].join(' ').toLowerCase().includes(q))).sort((a,b)=>b.nr-a.nr);
+  if(!l.length){$('#list').innerHTML=`<div class="empty">${{eingang:'Keine neuen Rechnungen im Postfach.',zu:'Keine Rechnungen warten auf dein Visum.',meine:'Du hast noch keine Rechnungen erfasst.'}[S.tab]||'Keine Rechnungen.'}</div>`;return}
+  $('#list').innerHTML=l.map(card).join('');
+}
+function card(x){
+  let stamp=`<span class="stamp st-${esc(x.status)}"><span class="s">${esc(x.status)}</span><span class="w">${x.status==='Eingang'?'noch keinem Ressort zugeordnet':x.status==='Offen'?'wartet auf Ressortleitung '+esc(x.ressort):esc(x.visumVon)+' · '+esc(dfmt(x.visumAm))}</span></span>`;
+  const a=[];
+  if(canVisum(x))a.push(`<button class="btn ok small" data-act="visum" data-nr="${x.nr}">Visieren</button>`,`<button class="btn bad small" data-act="zurueck" data-nr="${x.nr}">Zurückweisen</button>`);
+  if(isAdmin()&&x.status==='Eingang')a.push(`<button class="btn primary small" data-act="zuweisen" data-nr="${x.nr}">Zuordnen</button>`,`<button class="btn small" data-act="verwerfen" data-nr="${x.nr}">Verwerfen</button>`);
+  if(canKorr(x))a.push(`<button class="btn small" data-act="korr" data-nr="${x.nr}">Korrigieren</button>`);
+  const hist=(x.verlauf||[]).slice().reverse().map(v=>`<li>${esc(dfmt(v.t))}: ${esc(v.a)} durch ${esc(v.by)}${v.text?' – «'+esc(v.text)+'»':''}</li>`).join('');
+  return `<article class="inv">
+    <div class="inv-h"><div><div class="lief"><span class="muted num" style="font-size:13px">#${x.nr}</span> ${esc(x.lieferant||x.betreff||'Rechnung aus dem Postfach')}</div>
+      <div class="meta">${x.rechnungsnr?`<span>Nr. <b>${esc(x.rechnungsnr)}</b></span>`:''}${x.datum?`<span>vom ${esc(dfmt(x.datum))}</span>`:''}${x.quelle==='Postfach'?`<span>per Mail von <b>${esc(x.absender)}</b> · ${esc(dfmt(x.erfasstAm))}</span>`:''}${x.duplikatVon?`<span class="chip">gleicher Beleg wie #${esc(x.duplikatVon)}</span>`:''}</div></div>
+      <div class="amt num">${x.betrag?chf(x.betrag):''}</div></div>
+    <div class="meta">${x.ressort?`<span>Ressort <b>${esc(x.ressort)}</b></span>`:''}${x.quelle==='Postfach'?'':`<span>erfasst von ${esc(x.erfasstVon)}</span>`}${x.beleg?`<button class="btn link small" data-act="beleg" data-nr="${x.nr}">Beleg öffnen</button>`:'<span>kein Beleg</span>'}</div>
+    ${x.leistung?`<p class="desc">${esc(x.leistung)}</p>`:''}
+    ${x.bem&&x.status!=='Offen'?`<p class="comment ${x.status==='Zurückgewiesen'?'bad':''}">${x.status==='Visiert'?'Bemerkung: ':'Grund: '}${esc(x.bem)}</p>`:''}
+    <div class="inv-f">${stamp}<div class="actions">${a.join('')}</div></div>
+    ${hist?`<details><summary>Verlauf</summary><ol>${hist}</ol></details>`:''}
+  </article>`;
+}
+async function drawJournal(){
+  const el=$('#list');el.innerHTML='<div class="empty">Journal wird geladen …</div>';
+  try{const j=await api('journal');
+    el.innerHTML=`<div class="tablewrap"><table><thead><tr><th>Lfd.</th><th>Zeitpunkt</th><th>Aktion</th><th>Nr.</th><th>Person</th><th>Rolle</th><th>Daten</th><th>Hash</th></tr></thead><tbody>${
+      j.rows.slice().reverse().map(r=>`<tr><td class="num">${esc(r[0])}</td><td>${esc(dfmt(r[1]))}</td><td>${esc(r[2])}</td><td class="num">${esc(r[3])}</td><td>${esc(r[4])}</td><td>${esc(r[5])}</td><td style="max-width:320px;overflow-wrap:anywhere">${esc(kurz(r[6]))}</td><td class="h" title="${esc(r[7])}">${esc(String(r[7]).slice(0,12))}…</td></tr>`).join('')
+    }</tbody></table></div>`;
+  }catch(e){el.innerHTML=`<div class="empty">${esc(e.message)}</div>`}
+}
+function kurz(s){try{const d=JSON.parse(s);const o=[];if(d.lieferant)o.push(d.lieferant);if(d.betrag)o.push(chf(d.betrag));if(d.ressort)o.push(d.ressort);if(d.bemerkung)o.push('«'+d.bemerkung+'»');if(d.belegName)o.push('Beleg '+d.belegName);return o.join(' · ')||'–'}catch(e){return s}}
+
+/* ===== Dialoge ===== */
+function openModal(title,body,foot,mount){
+  const sh=$('#m-sheet');
+  sh.innerHTML=`<div class="m-head"><h2 id="m-title">${esc(title)}</h2><button class="x" data-act="close" aria-label="Schliessen">×</button></div><div class="m-content">${body}</div><div class="m-foot">${foot}</div>`;
+  $('#modal').hidden=false;if(mount)mount(sh);
+}
+function closeModal(){$('#modal').hidden=true;$('#m-sheet').innerHTML=''}
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').hidden)closeModal()});
+
+const readB64=file=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(file)});
+const TYPES={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',heic:'image/heic'};
+
+function formModal(x){
+  const zu=!!(x&&x.status==='Eingang');
+  const pre=x?x.ressort||'':'';
+  const body=`<form id="f" class="form" novalidate>
+    ${zu?`<div class="field"><span class="lbl">Beleg</span><div class="actions"><button type="button" class="btn small" data-act="beleg" data-nr="${x.nr}">Beleg öffnen</button><span class="hint">per Mail von ${esc(x.absender)}</span></div><p class="qr" id="f-qr" hidden></p></div>`:
+    `<div class="field"><label for="f-file">Beleg (PDF oder Foto)</label><input id="f-file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.heic">
+      <p class="hint">${x&&x.beleg?'Ein Beleg ist hinterlegt. Eine neue Datei ersetzt ihn.':'Bei einer QR-Rechnung werden die Angaben automatisch ausgefüllt.'}</p><p class="qr" id="f-qr" hidden></p></div>`}
+    <div class="field"><label for="f-ressort">Ressort</label><select id="f-ressort"><option value="">Bitte wählen</option>${S.ressorts.map(r=>`<option ${r===pre?'selected':''}>${esc(r)}</option>`).join('')}</select></div>
+    <div class="field"><label for="f-lief">Lieferant</label><input id="f-lief" autocomplete="off" value="${esc(x?.lieferant)}"></div>
+    <div class="row2">
+      <div class="field"><label for="f-nr">Rechnungsnummer</label><input id="f-nr" autocomplete="off" value="${esc(x?.rechnungsnr)}"></div>
+      <div class="field"><label for="f-betrag">Betrag in CHF</label><input id="f-betrag" class="num" inputmode="decimal" autocomplete="off" value="${x?esc(x.betrag):''}" placeholder="0.00"></div>
+    </div>
+    <div class="field"><label for="f-datum">Rechnungsdatum</label><input id="f-datum" type="date" value="${esc(x?.datum||today())}" data-auto="${x&&!zu?0:1}"></div>
+    <div class="field"><label for="f-text">Leistung</label><textarea id="f-text" rows="2" placeholder="Was wurde geliefert oder geleistet?">${esc(x?.leistung)}</textarea></div>
+    ${zu?'<p class="hint">Nach dem Zuordnen geht die Rechnung per Mail an die Ressortleitung.</p>':x?'<p class="hint">Nach dem Speichern geht die Rechnung wieder an die Ressortleitung.</p>':''}
+    <p class="err" id="f-err" hidden></p></form>`;
+  const lbl=zu?'Zuordnen und senden':x?'Erneut einreichen':'Erfassen';
+  openModal(zu?'Rechnung #'+x.nr+' zuordnen':x?'Rechnung #'+x.nr+' korrigieren':'Rechnung erfassen',body,`<button class="btn" data-act="close">Abbrechen</button><button class="btn primary" type="submit" form="f" id="f-save">${lbl}</button>`,sh=>{
+    sh.querySelectorAll('input,textarea').forEach(el=>el.addEventListener('input',()=>{el.classList.remove('auto');if(el.id==='f-datum')el.dataset.auto='0'}));
+    if(zu){api('beleg',{nr:x.nr}).then(b=>{const bytes=Uint8Array.from(atob(b.b64),c=>c.charCodeAt(0));recognize(new File([bytes],b.name,{type:b.type}),sh)}).catch(()=>{})}
+    else sh.querySelector('#f-file').addEventListener('change',e=>{const fl=e.target.files[0];if(fl)recognize(fl,sh)});
+    sh.querySelector('#f').addEventListener('submit',async e=>{
+      e.preventDefault();const err=sh.querySelector('#f-err'),show=m=>{err.textContent=m;err.hidden=false};
+      const d={ressort:sh.querySelector('#f-ressort').value,lieferant:sh.querySelector('#f-lief').value.trim(),rechnungsnr:sh.querySelector('#f-nr').value.trim(),
+        betrag:parseAmt(sh.querySelector('#f-betrag').value),datum:sh.querySelector('#f-datum').value,leistung:sh.querySelector('#f-text').value.trim()};
+      if(!d.ressort)return show('Bitte das Ressort wählen.');
+      if(!d.lieferant)return show('Bitte den Lieferanten angeben.');
+      if(!(d.betrag>0))return show('Bitte einen gültigen Betrag eingeben, z. B. 1250.50.');
+      if(!d.datum)return show('Bitte das Rechnungsdatum angeben.');
+      const btn=sh.querySelector('#f-save');btn.disabled=true;err.hidden=true;
+      try{
+        const file=zu?null:sh.querySelector('#f-file').files[0];
+        if(file){const ext=(file.name.split('.').pop()||'').toLowerCase();const type=TYPES[ext];
+          if(!type){btn.disabled=false;return show('Beleg: bitte PDF, JPG oder PNG.')}
+          if(file.size>10*1024*1024){btn.disabled=false;return show('Der Beleg ist grösser als 10 MB.')}
+          btn.textContent='Beleg wird hochgeladen …';d.beleg={name:file.name,type,b64:await readB64(file)}}
+        else if(!x){btn.disabled=false;return show('Bitte den Beleg hochladen.')}
+        if(x)d.nr=x.nr;
+        const r=await api(zu?'zuweisen':x?'korrigieren':'erfassen',d);
+        closeModal();toast(zu?'Zugeordnet. Die Ressortleitung wurde informiert.':x?'Erneut eingereicht. Die Ressortleitung wurde informiert.':'Rechnung #'+r.nr+' erfasst. Die Ressortleitung wurde informiert.');await load();
+      }catch(ex){btn.disabled=false;btn.textContent=lbl;show(ex.message)}
+    });
+  });
+}
+
+function visumModal(x,kind){
+  const ok=kind==='Visiert';
+  const body=`<div class="recap"><div class="row"><b>#${x.nr} ${esc(x.lieferant)}</b><span class="num">${chf(x.betrag)}</span></div>
+      <div class="muted" style="font-size:13px">${x.rechnungsnr?'Nr. '+esc(x.rechnungsnr)+' · ':''}vom ${esc(dfmt(x.datum))} · Ressort ${esc(x.ressort)} · erfasst von ${esc(x.erfasstVon)}</div>
+      ${x.leistung?`<div style="font-size:14px">${esc(x.leistung)}</div>`:''}
+      ${x.beleg?`<div><button class="btn link small" style="padding-left:0" data-act="beleg" data-nr="${x.nr}">Beleg öffnen</button></div>`:''}</div>
+    <div class="field"><span class="lbl">Entscheid</span><div class="actions">
+      <label class="check" style="margin:0"><input type="radio" name="ent" value="Visiert" ${ok?'checked':''}> Visiert</label>
+      <label class="check" style="margin:0"><input type="radio" name="ent" value="Zurückgewiesen" ${ok?'':'checked'}> Zurückgewiesen</label></div></div>
+    <label class="check" id="m-bst-w"><input type="checkbox" id="m-bst"><span>Ich bestätige: Die Leistung wurde bestellt und erbracht, und der Betrag stimmt.</span></label>
+    <div class="field"><label for="m-k" id="m-k-l"></label><textarea id="m-k" rows="3"></textarea></div>
+    <p class="hint">Dein Entscheid wird mit Name und Zeitpunkt im Journal gespeichert und kann nicht mehr geändert werden.</p>
+    <p class="err" id="m-err" hidden></p>`;
+  openModal('Rechnung #'+x.nr+' visieren',body,`<button class="btn" data-act="close">Abbrechen</button><button class="btn" id="m-ok">Speichern</button>`,sh=>{
+    const upd=()=>{const v=sh.querySelector('input[name=ent]:checked').value,isOk=v==='Visiert';
+      sh.querySelector('#m-bst-w').hidden=!isOk;sh.querySelector('#m-k-l').textContent=isOk?'Bemerkung (freiwillig)':'Grund der Zurückweisung';
+      const b=sh.querySelector('#m-ok');b.className='btn '+(isOk?'ok':'bad solid');b.textContent=isOk?'Visieren':'Zurückweisen'};
+    sh.querySelectorAll('input[name=ent]').forEach(r=>r.addEventListener('change',upd));upd();
+    sh.querySelector('#m-ok').addEventListener('click',async e=>{
+      const v=sh.querySelector('input[name=ent]:checked').value,t=sh.querySelector('#m-k').value.trim(),err=sh.querySelector('#m-err'),show=m=>{err.textContent=m;err.hidden=false};
+      if(v==='Visiert'&&!sh.querySelector('#m-bst').checked)return show('Bitte die Bestätigung ankreuzen.');
+      if(v==='Zurückgewiesen'&&!t)return show('Bitte den Grund angeben.');
+      e.target.disabled=true;
+      try{await api('visum',{nr:x.nr,entscheid:v,bemerkung:t,bestaetigt:v==='Visiert'});closeModal();toast(v==='Visiert'?'Visiert':'Zurückgewiesen');await load()}
+      catch(ex){e.target.disabled=false;show(ex.message)}
+    });
+  });
+}
+
+function verwerfenModal(x){
+  openModal('Rechnung #'+x.nr+' verwerfen',`<p style="margin:0">Die Rechnung aus dem Postfach wird nicht weitergeleitet. Sie bleibt im Journal sichtbar.</p>
+    <div class="field"><label for="v-g">Grund</label><input id="v-g" placeholder="z. B. Doppelt erhalten, keine Rechnung, falscher Anlass"></div><p class="err" id="v-err" hidden></p>`,
+    `<button class="btn" data-act="close">Abbrechen</button><button class="btn bad solid" id="v-ok">Verwerfen</button>`,sh=>{
+    sh.querySelector('#v-ok').addEventListener('click',async e=>{const g=sh.querySelector('#v-g').value.trim(),err=sh.querySelector('#v-err');
+      if(!g){err.textContent='Bitte einen Grund angeben.';err.hidden=false;return}
+      e.target.disabled=true;try{await api('verwerfen',{nr:x.nr,bemerkung:g});closeModal();toast('Verworfen');await load()}catch(ex){e.target.disabled=false;err.textContent=ex.message;err.hidden=false}});
+  });
+}
+
+async function openBeleg(nr){
+  const w=window.open('','_blank');
+  if(w)w.document.write('<p style="font-family:sans-serif">Beleg wird geladen …</p>');
+  try{const b=await api('beleg',{nr});
+    const bytes=Uint8Array.from(atob(b.b64),c=>c.charCodeAt(0));const url=URL.createObjectURL(new Blob([bytes],{type:b.type}));
+    if(w)w.location.href=url;else{const a=document.createElement('a');a.href=url;a.download=b.name;a.click()}
+  }catch(e){if(w)w.close();toast(e.message)}
+}
+
+/* ===== Belegerkennung (Schweizer QR-Rechnung) ===== */
+let pdfReady=null;
+async function pdfjs(){
+  if(!window.pdfjsLib)throw new Error('pdf.js fehlt');
+  if(!pdfReady)pdfReady=(async()=>{const t=await (await fetch('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js')).text();pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([t],{type:'text/javascript'}))})();
+  await pdfReady;return pdfjsLib;
+}
+async function renderFile(file){
+  const out=[];let text='';
+  if(/\.pdf$/i.test(file.name)||file.type==='application/pdf'){
+    const lib=await pdfjs();const doc=await lib.getDocument({data:await file.arrayBuffer()}).promise;
+    for(let p=1;p<=Math.min(doc.numPages,3);p++){const page=await doc.getPage(p);
+      try{text+=(await page.getTextContent()).items.map(i=>i.str).join(' ')+'\n'}catch(e){}
+      const vp=page.getViewport({scale:3});const c=document.createElement('canvas');c.width=Math.floor(vp.width);c.height=Math.floor(vp.height);
+      await page.render({canvasContext:c.getContext('2d',{willReadFrequently:true}),viewport:vp}).promise;out.push(c)}
+  }else if(file.type.startsWith('image/')){
+    const img=await createImageBitmap(file);const k=Math.min(1,3000/Math.max(img.width,img.height));
+    const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext('2d',{willReadFrequently:true}).drawImage(img,0,0,c.width,c.height);out.push(c)}
+  return {canvases:out,text};
+}
+function findQR(c){
+  if(!window.jsQR)return null;const ctx=c.getContext('2d',{willReadFrequently:true}),W=c.width,H=c.height;
+  for(const [x,y,w,h] of [[0,.55,.55,.45],[0,.5,1,.5],[0,0,1,1]]){
+    const X=Math.floor(x*W),Y=Math.floor(y*H),w2=Math.floor(w*W),h2=Math.floor(h*H);
+    const r=jsQR(ctx.getImageData(X,Y,w2,h2).data,w2,h2,{inversionAttempts:'attemptBoth'});if(r&&/^SPC/.test(r.data))return r.data}
+  return null;
+}
+function parseSPC(data){
+  const L=data.split(/\r?\n/),g=i=>(L[i]||'').trim();
+  const o={lieferant:g(5),betrag:parseFloat(g(18))||null,mitteilung:g(29)};const bi=g(31);
+  if(bi.startsWith('//S1/')){const p=bi.slice(5).replace(/\\\//g,'\u0000').split('/').map(x=>x.replace(/\u0000/g,'/'));
+    for(let i=0;i<p.length-1;i+=2){if(p[i]==='10')o.rechnungsnr=p[i+1];if(p[i]==='11'){const m=p[i+1].match(/^(\d{2})(\d{2})(\d{2})/);if(m)o.datum=`20${m[1]}-${m[2]}-${m[3]}`}}}
+  return o;
+}
+function parseText(t){
+  const o={};const nr=t.match(/Rechnung(?:s)?\s*-?\s*(?:Nr\.?|Nummer|No\.?)\s*:?\s*([A-Z0-9][A-Z0-9\-\/\.]{2,})/i);if(nr)o.rechnungsnr=nr[1];
+  const dt=t.match(/(?:Rechnungsdatum|Datum)\s*:?\s*(\d{1,2})\.(\d{1,2})\.(\d{2,4})/i);if(dt){const y=dt[3].length===2?'20'+dt[3]:dt[3];o.datum=`${y}-${dt[2].padStart(2,'0')}-${dt[1].padStart(2,'0')}`}
+  const am=[...t.matchAll(/(?:Total|Gesamtbetrag|Rechnungsbetrag|zu bezahlen|Betrag)[^\d]{0,25}(\d{1,3}(?:['’ ]\d{3})*(?:[.,]\d{2}))/gi)];if(am.length){const v=parseAmt(am[am.length-1][1]);if(v>0)o.betrag=v}
+  return o;
+}
+async function recognize(file,sh){
+  const box=sh.querySelector('#f-qr');box.hidden=false;box.className='qr';box.textContent='Beleg wird gelesen …';
+  try{const {canvases,text}=await renderFile(file);let found=null,src='';
+    for(const c of canvases){const q=findQR(c);if(q){found=parseSPC(q);src='qr';break}}
+    if(!found&&text.trim()){found=parseText(text);src=Object.keys(found).length?'text':''}
+    if(!found||!src){box.textContent='Keine QR-Rechnung erkannt. Bitte die Angaben von Hand eintragen.';return}
+    const set=(id,v)=>{const el=sh.querySelector(id);if(el&&v!=null&&v!==''&&!el.value.trim()){el.value=v;el.classList.add('auto')}};
+    set('#f-lief',found.lieferant);set('#f-nr',found.rechnungsnr);if(found.betrag)set('#f-betrag',found.betrag.toFixed(2));set('#f-text',found.mitteilung);
+    if(found.datum){const el=sh.querySelector('#f-datum');if(el.dataset.auto==='1'){el.value=found.datum;el.classList.add('auto')}}
+    box.className=src==='qr'?'qr ok':'qr';box.textContent=src==='qr'?'QR-Rechnung erkannt. Blau markierte Felder bitte kurz prüfen.':'Text im PDF gefunden. Blau markierte Felder sind geschätzt, bitte genau prüfen.';
+  }catch(e){box.textContent='Der Beleg konnte nicht gelesen werden. Bitte die Angaben von Hand eintragen.'}
+}
+
+/* ===== Aktionen ===== */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const x=b.dataset.nr&&S.liste.find(i=>i.nr===Number(b.dataset.nr));
+  switch(b.dataset.act){
+    case 'close':closeModal();break;
+    case 'reload':load().then(()=>toast('Aktualisiert')).catch(er=>toast(er.message));break;
+    case 'tab':S.tab=b.dataset.t;draw();break;
+    case 'neu':formModal(null);break;
+    case 'korr':x&&formModal(x);break;
+    case 'zuweisen':x&&formModal(x);break;
+    case 'verwerfen':x&&verwerfenModal(x);break;
+    case 'visum':x&&visumModal(x,'Visiert');break;
+    case 'zurueck':x&&visumModal(x,'Zurückgewiesen');break;
+    case 'beleg':openBeleg(Number(b.dataset.nr));break;
+  }
+});
+$('#f-res').addEventListener('change',draw);
+$('#f-q').addEventListener('input',draw);
+boot();
+</script>
+</body>
+</html>
